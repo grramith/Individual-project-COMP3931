@@ -2,6 +2,7 @@ import numpy as np
 import os
 from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.metrics import mean_absolute_error
 
 def train_baseline_regressors():
     X_train = np.load("data/modeling/X_train.npy")
@@ -42,7 +43,30 @@ def train_baseline_regressors():
         }
     }
 
-    print(f"Loaded {len(param_grids)} baseline model families")
+    best_configs = {}
+
+    for model_name, config in param_grids.items():
+        best_mae = float("inf")
+        best_params = None
+
+        for params in config["params"]:
+            model = config["model_class"](**params)
+            model.fit(X_train, y_train)
+
+            val_preds = model.predict(X_val)
+            val_mae = mean_absolute_error(y_val, val_preds)
+
+            if val_mae < best_mae:
+                best_mae = val_mae
+                best_params = params
+
+        best_configs[model_name] = {
+            "best_val_mae": best_mae,
+            "best_params": best_params
+        }
+
+    print("Validation tuning complete")
+    print(best_configs)
 
 if __name__ == "__main__":
     train_baseline_regressors()
