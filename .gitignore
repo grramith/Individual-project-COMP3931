@@ -1,3 +1,13 @@
+# Ignore everything by default
 *
-!final_mag7.ipynb
+
+# Allow core project files
 !.gitignore
+!README.md
+
+# Allow notebook (for reference)
+!final_mag7.ipynb
+
+# Allow scripts
+!scripts/
+!scripts/*.py
