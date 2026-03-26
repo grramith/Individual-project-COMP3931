@@ -132,14 +132,15 @@ def train_baseline_regressors():
         print(f"  >> Test MAE: {test_mae:.6f} | RMSE: {test_rmse:.6f} | R2: {test_r2:.4f} | DirAcc: {test_dir_acc:.2%}")
 
 
+    # Save final results for reporting and analysis
     results_df = pd.DataFrame(results)
     results_df.to_csv("data/results/baseline_regression_results.csv", index=False)
     
 
+    # Save full tuning history for reproducibility
     tuning_df = pd.DataFrame(tuning_logs)
     tuning_df.to_csv("data/results/hyperparameter_tuning_log.csv", index=False)
     
-    print("\n" + "=" * 70)
     print("All baseline models trained, tuned, and saved.")
     print(results_df.to_string(index=False))
     return results_df
