@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
+import os
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset
 
 class LSTMRegressor(nn.Module):
     """
@@ -54,3 +56,42 @@ def create_sequences_per_ticker(X, y, metadata, seq_len):
         np.array(targets),
         pd.DataFrame(meta_rows)
     )
+
+def train_lstm():
+    # Load modelling arrays
+    X_train = np.load("data/modeling/X_train.npy")
+    X_val = np.load("data/modeling/X_val.npy")
+    X_test = np.load("data/modeling/X_test.npy")
+    y_train = np.load("data/modeling/y_train_returns.npy")
+    y_val = np.load("data/modeling/y_val_returns.npy")
+    y_test = np.load("data/modeling/y_test_returns.npy")
+
+    # Load metadata so sequences can be built per ticker
+    meta_train = pd.read_csv("data/modeling/train_metadata.csv")
+    meta_val = pd.read_csv("data/modeling/val_metadata.csv")
+    meta_test = pd.read_csv("data/modeling/test_metadata.csv")
+
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+
+    print(f"Using device: {device}")
+
+    hyperparam_configs = [
+        {"seq_len": 10, "hidden_size": 64, "lr": 0.001, "dropout": 0.3},
+        {"seq_len": 20, "hidden_size": 64, "lr": 0.001, "dropout": 0.3},
+        {"seq_len": 10, "hidden_size": 128, "lr": 0.0005, "dropout": 0.2},
+        {"seq_len": 20, "hidden_size": 128, "lr": 0.0005, "dropout": 0.2},
+    ]
+
+    NUM_EPOCHS = 50
+    BATCH_SIZE = 64
+    PATIENCE = 10
+
+    print("Tuning LSTM hyperparameters on validation set...")
+
+if __name__ == "__main__":
+    train_lstm()
