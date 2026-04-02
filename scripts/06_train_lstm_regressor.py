@@ -1,11 +1,19 @@
 import numpy as np
 import pandas as pd
+import os
+import json
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
 
 class LSTMRegressor(nn.Module):
+    """
+    Two-layer LSTM for daily return prediction.
+    Dropout is applied between LSTM layers and before the output
+    to reduce overfitting on noisy financial data.
+    """
     def __init__(self, input_size, hidden_size=64, num_layers=2, dropout=0.3):
         super().__init__()
         self.lstm = nn.LSTM(
@@ -26,8 +34,12 @@ class LSTMRegressor(nn.Module):
 
 
 def create_sequences_per_ticker(X, y, metadata, seq_len):
+    """
+    Create sequences within each ticker only.
+    """
     sequences = []
     targets = []
+    meta_rows = []
 
     tickers = metadata["Ticker"].unique()
 
@@ -35,12 +47,17 @@ def create_sequences_per_ticker(X, y, metadata, seq_len):
         mask = metadata["Ticker"].values == ticker
         X_ticker = X[mask]
         y_ticker = y[mask]
+        meta_ticker = metadata[mask].reset_index(drop=True)
 
         for i in range(seq_len, len(X_ticker)):
             sequences.append(X_ticker[i - seq_len:i])
             targets.append(y_ticker[i])
+            meta_rows.append({
+                "Date": meta_ticker.iloc[i]["Date"],
+                "Ticker": ticker
+            })
 
-    return np.array(sequences), np.array(targets)
+    return np.array(sequences), np.array(targets), pd.DataFrame(meta_rows)
 
 
 def get_device():
@@ -81,6 +98,7 @@ def train_lstm():
     best_val_loss = float("inf")
     best_config = None
     best_model_state = None
+    tuning_log = []
 
     print("Tuning LSTM hyperparameters on validation set...")
     print("=" * 70)
@@ -89,10 +107,10 @@ def train_lstm():
         seq_len = cfg["seq_len"]
         print(f"\nConfig: {cfg}")
 
-        X_train_seq, y_train_seq = create_sequences_per_ticker(
+        X_train_seq, y_train_seq, _ = create_sequences_per_ticker(
             X_train, y_train, meta_train, seq_len
         )
-        X_val_seq, y_val_seq = create_sequences_per_ticker(
+        X_val_seq, y_val_seq, _ = create_sequences_per_ticker(
             X_val, y_val, meta_val, seq_len
         )
 
@@ -172,6 +190,12 @@ def train_lstm():
             if (epoch + 1) % 10 == 0:
                 print(f"  Epoch {epoch + 1}/{num_epochs} | Train Loss: {train_loss:.6f} | Val Loss: {val_loss:.6f}")
 
+        tuning_log.append({
+            "config": str(cfg),
+            "best_val_loss": best_epoch_val_loss,
+            "stopped_epoch": epoch + 1
+        })
+
         print(f"  Best Val Loss: {best_epoch_val_loss:.6f}")
 
         if best_epoch_val_loss < best_val_loss:
@@ -195,13 +219,15 @@ def train_lstm():
     ).to(device)
     final_model.load_state_dict(best_model_state)
 
-    X_test_seq, y_test_seq = create_sequences_per_ticker(
+    X_test_seq, y_test_seq, meta_test_seq = create_sequences_per_ticker(
         X_test, y_test, meta_test, best_config["seq_len"]
     )
 
     final_model.eval()
     with torch.no_grad():
-        test_preds = final_model(torch.FloatTensor(X_test_seq).to(device)).cpu().numpy()
+        test_preds = final_model(
+            torch.FloatTensor(X_test_seq).to(device)
+        ).cpu().numpy()
 
     test_mae = np.mean(np.abs(y_test_seq - test_preds))
     test_dir_acc = np.mean((test_preds > 0) == (y_test_seq > 0))
@@ -209,7 +235,25 @@ def train_lstm():
     print("\nTest Performance:")
     print(f"  MAE: {test_mae:.6f}")
     print(f"  Directional Accuracy: {test_dir_acc:.2%}")
-    print(f"  Test sequences: {len(test_preds)}")
+    print(f"  Test sequences: {len(test_preds)} (from {len(y_test)} raw test rows)")
+
+    os.makedirs("models/lstm", exist_ok=True)
+    os.makedirs("data/results", exist_ok=True)
+
+    torch.save(best_model_state, "models/lstm/best_lstm.pth")
+
+    with open("models/lstm/best_config.json", "w") as f:
+        json.dump(best_config, f, indent=2)
+
+    lstm_results = meta_test_seq.copy()
+    lstm_results["Pred_LSTM"] = test_preds
+    lstm_results["Actual"] = y_test_seq
+    lstm_results.to_csv("data/results/lstm_predictions.csv", index=False)
+
+    pd.DataFrame(tuning_log).to_csv("data/results/lstm_tuning_log.csv", index=False)
+
+    print("\nLSTM predictions saved to data/results/lstm_predictions.csv")
+    print("Model saved to models/lstm/")
 
     return test_preds, y_test_seq
 
