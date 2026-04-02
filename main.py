@@ -7,7 +7,8 @@ scripts = [
     "scripts/02_feature_engineering.py",
     "scripts/03_build_master_dataset.py",
     "scripts/04_regression_data_preprocessing.py",
-    "scripts/05_train_baseline_regressors.py"
+    "scripts/05_train_baseline_regressors.py",
+    "scripts/06_train_lstm_regressor.py",
 ]
 
 # Simple visual separator for readability
