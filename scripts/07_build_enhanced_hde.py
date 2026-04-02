@@ -91,6 +91,8 @@ def compute_ensemble_predictions(
 def sharpe_from_signals(
     results_df,
     threshold=0.001,
+    vix_low=20.0,
+    vix_high=30.0,
     use_fractional=True,
     allow_short=True,
     tx_cost=0.0005,
@@ -101,6 +103,7 @@ def sharpe_from_signals(
         ticker_df = results_df[results_df["Ticker"] == ticker].copy().sort_values("Date")
         preds = ticker_df["Ensemble_Delta"].values
         actual = ticker_df["Actual"].values
+        vix = ticker_df["VIX_Value"].values if "VIX_Value" in ticker_df.columns else np.zeros(len(ticker_df))
         n = len(ticker_df)
 
         position = np.zeros(n)
@@ -108,18 +111,26 @@ def sharpe_from_signals(
 
         for i in range(1, n):
             pred = preds[i - 1]
+            vix_value = vix[i - 1]
+
+            if vix_value > vix_high:
+                eff_threshold = threshold * 3.0
+            elif vix_value > vix_low:
+                eff_threshold = threshold * 1.5
+            else:
+                eff_threshold = threshold
 
             if use_fractional:
-                if pred > threshold:
-                    position[i] = min(pred / (threshold * 5 + 1e-9), 1.0)
-                elif allow_short and pred < -threshold:
-                    position[i] = max(pred / (threshold * 5 + 1e-9), -1.0)
+                if pred > eff_threshold:
+                    position[i] = min(pred / (eff_threshold * 5 + 1e-9), 1.0)
+                elif allow_short and pred < -eff_threshold:
+                    position[i] = max(pred / (eff_threshold * 5 + 1e-9), -1.0)
                 else:
                     position[i] = 0.0
             else:
-                if pred > threshold:
+                if pred > eff_threshold:
                     position[i] = 1.0
-                elif allow_short and pred < -threshold:
+                elif allow_short and pred < -eff_threshold:
                     position[i] = -1.0
                 else:
                     position[i] = 0.0
@@ -141,6 +152,57 @@ def sharpe_from_signals(
     return sharpe, combined
 
 
+def get_device():
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
+def generate_lstm_val_predictions(X_val, y_val, val_meta):
+    with open("models/lstm/best_config.json", "r") as f:
+        lstm_cfg = json.load(f)
+
+    device = get_device()
+
+    model = LSTMRegressor(
+        input_size=X_val.shape[1],
+        hidden_size=lstm_cfg["hidden_size"],
+        num_layers=2,
+        dropout=lstm_cfg["dropout"],
+    ).to(device)
+
+    model.load_state_dict(torch.load("models/lstm/best_lstm.pth", map_location=device))
+    model.eval()
+
+    seq_len = lstm_cfg["seq_len"]
+    val_sequences = []
+    val_seq_meta = []
+
+    for ticker in val_meta["Ticker"].unique():
+        ticker_mask = val_meta["Ticker"].values == ticker
+        X_ticker = X_val[ticker_mask]
+        meta_ticker = val_meta[ticker_mask].reset_index(drop=True)
+
+        for i in range(seq_len, len(X_ticker)):
+            val_sequences.append(X_ticker[i - seq_len:i])
+            val_seq_meta.append(
+                {
+                    "Date": meta_ticker.iloc[i]["Date"],
+                    "Ticker": ticker,
+                }
+            )
+
+    val_sequences = np.array(val_sequences)
+    val_seq_meta = pd.DataFrame(val_seq_meta)
+
+    with torch.no_grad():
+        preds = model(torch.FloatTensor(val_sequences).to(device)).cpu().numpy()
+
+    return preds, val_seq_meta
+
+
 def build_enhanced_hde():
     X_val = np.load("data/modeling/X_val.npy")
     X_test = np.load("data/modeling/X_test.npy")
@@ -155,15 +217,56 @@ def build_enhanced_hde():
     test_meta["Date"] = pd.to_datetime(test_meta["Date"])
     full_df["Date"] = pd.to_datetime(full_df["Date"])
 
+    lstm_test_df = pd.read_csv("data/results/lstm_predictions.csv")
+    lstm_test_df["Date"] = pd.to_datetime(lstm_test_df["Date"])
+    lstm_test_preds = lstm_test_df["Pred_LSTM"].values
+    lstm_test_meta = lstm_test_df[["Date", "Ticker"]].copy()
+
+    lstm_val_preds, val_seq_meta = generate_lstm_val_predictions(X_val, y_val, val_meta)
+
+    vix_col = [col for col in full_df.columns if "vix" in col.lower()][0]
+    vix_data = full_df[["Date", "Ticker", vix_col]].copy()
+    vix_data = vix_data.rename(columns={vix_col: "VIX_Value"})
+
+    val_meta = val_meta.merge(vix_data, on=["Date", "Ticker"], how="left")
+    test_meta = test_meta.merge(vix_data, on=["Date", "Ticker"], how="left")
+
+    train_vix = full_df[full_df["Date"] < "2023-01-01"][vix_col].dropna()
+    vix_50th = float(train_vix.quantile(0.50))
+    vix_75th = float(train_vix.quantile(0.75))
+
     rf = joblib.load("models/baselines/RF_Regressor.pkl")
     gb = joblib.load("models/baselines/GB_Regressor.pkl")
 
-    val_results = compute_ensemble_predictions(val_meta, X_val, y_val, rf, gb)
-    val_sharpe, _ = sharpe_from_signals(val_results, threshold=0.001)
+    val_results = compute_ensemble_predictions(
+        val_meta,
+        X_val,
+        y_val,
+        rf,
+        gb,
+        lstm_val_preds,
+        val_seq_meta,
+    )
 
-    test_results = compute_ensemble_predictions(test_meta, X_test, y_test, rf, gb)
+    val_sharpe, _ = sharpe_from_signals(
+        val_results,
+        threshold=0.001,
+        vix_low=vix_50th,
+        vix_high=vix_75th,
+    )
+
+    test_results = compute_ensemble_predictions(
+        test_meta,
+        X_test,
+        y_test,
+        rf,
+        gb,
+        lstm_test_preds,
+        lstm_test_meta,
+    )
 
     print("Validation Sharpe:", round(val_sharpe, 3))
+    print(f"VIX thresholds: 50th={vix_50th:.1f}, 75th={vix_75th:.1f}")
     print("Validation ensemble rows:", len(val_results))
     print("Test ensemble rows:", len(test_results))
 
