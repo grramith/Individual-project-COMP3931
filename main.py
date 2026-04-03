@@ -9,6 +9,7 @@ scripts = [
     "scripts/04_regression_data_preprocessing.py",
     "scripts/05_train_baseline_regressors.py",
     "scripts/06_train_lstm_regressor.py",
+    "scripts/07_build_enhanced_hde.py",
 ]
 
 # Simple visual separator for readability

@@ -7,6 +7,7 @@ from datetime import datetime
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
+import time
 
 
 class LSTMRegressor(nn.Module):
@@ -108,6 +109,7 @@ def train_lstm():
     
     print("Tuning LSTM hyperparameters on validation set...")
     print("=" * 70)
+    start_lstm = time.time()  # ADD THIS LINE
     
     for cfg in hyperparam_configs:
         seq_len = cfg["seq_len"]
@@ -210,6 +212,7 @@ def train_lstm():
             best_config = cfg
             best_model_state = best_state
 
+    print(f"LSTM tuning completed in {(time.time() - start_lstm) / 60:.1f} minutes")  # ADD THIS LINE
     # Stop early if no valid configuration produced a usable model
     if best_config is None:
         print("ERROR: No valid configuration found!")

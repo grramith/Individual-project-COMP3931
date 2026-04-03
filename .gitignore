@@ -20,3 +20,5 @@
 # Explicitly ignore data (good practice for dissertation)
 data/
 models/
+# Temporarily exclude test suite
+tests/

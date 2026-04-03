@@ -5,6 +5,28 @@ import os
 import json
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import torch
+import time
+
+import torch.nn as nn
+
+class LSTMRegressor(nn.Module):
+    def __init__(self, input_size, hidden_size=64, num_layers=2, dropout=0.3):
+        super().__init__()
+        self.lstm = nn.LSTM(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout if num_layers > 1 else 0.0
+        )
+        self.dropout = nn.Dropout(dropout)
+        self.fc = nn.Linear(hidden_size, 1)
+
+    def forward(self, x):
+        lstm_out, _ = self.lstm(x)
+        last_hidden = lstm_out[:, -1, :]
+        out = self.dropout(last_hidden)
+        return self.fc(out).squeeze(-1)
 
 
 # Dynamic ensemble prediction engine for HDE
@@ -346,6 +368,7 @@ def build_enhanced_hde():
     best_params   = None
     tuning_results = []
 
+    start_grid = time.time()  # ADD THIS LINE
     # Evaluate every grid configuration on the validation set
     for params in param_grid:
         val_ens = compute_ensemble_predictions(
@@ -368,6 +391,9 @@ def build_enhanced_hde():
             best_params = params
 
     # Print the best validation result and save the tuning log
+
+
+    print(f"Grid search completed in {(time.time() - start_grid) / 60:.1f} minutes")  # ADD THIS LINE
     print(f"Configurations tested:   {len(param_grid)}")
     print(f"Best Validation Sharpe:  {best_sharpe:.3f}")
     print(f"Best Parameters:         {best_params}")
