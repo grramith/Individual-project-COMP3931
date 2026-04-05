@@ -368,7 +368,7 @@ def build_enhanced_hde():
     best_params   = None
     tuning_results = []
 
-    start_grid = time.time()  # ADD THIS LINE
+    start_grid = time.time()
     # Evaluate every grid configuration on the validation set
     for params in param_grid:
         val_ens = compute_ensemble_predictions(
@@ -393,7 +393,7 @@ def build_enhanced_hde():
     # Print the best validation result and save the tuning log
 
 
-    print(f"Grid search completed in {(time.time() - start_grid) / 60:.1f} minutes")  # ADD THIS LINE
+    print(f"Grid search completed in {(time.time() - start_grid) / 60:.1f} minutes")
     print(f"Configurations tested:   {len(param_grid)}")
     print(f"Best Validation Sharpe:  {best_sharpe:.3f}")
     print(f"Best Parameters:         {best_params}")

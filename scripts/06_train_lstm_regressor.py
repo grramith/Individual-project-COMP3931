@@ -109,7 +109,7 @@ def train_lstm():
     
     print("Tuning LSTM hyperparameters on validation set...")
     print("=" * 70)
-    start_lstm = time.time()  # ADD THIS LINE
+    start_lstm = time.time()
     
     for cfg in hyperparam_configs:
         seq_len = cfg["seq_len"]
@@ -212,7 +212,7 @@ def train_lstm():
             best_config = cfg
             best_model_state = best_state
 
-    print(f"LSTM tuning completed in {(time.time() - start_lstm) / 60:.1f} minutes")  # ADD THIS LINE
+    print(f"LSTM tuning completed in {(time.time() - start_lstm) / 60:.1f} minutes")
     # Stop early if no valid configuration produced a usable model
     if best_config is None:
         print("ERROR: No valid configuration found!")
