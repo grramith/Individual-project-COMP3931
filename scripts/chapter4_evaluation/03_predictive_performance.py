@@ -1,70 +1,87 @@
-def preds_for_model(col_name):
-    df = PREDS[["Date", "Ticker", "Actual", "VIX_Value", col_name]].copy()
-    df.rename(columns={col_name: "Prediction"}, inplace=True)
-    return df.dropna(subset=["Prediction"])
+def run_strategy(label, preds_df, **override):
+    kwargs = dict(
+        threshold=HDE_CONFIG["threshold"],
+        vix_low=HDE_CONFIG["vix_low"],
+        vix_high=HDE_CONFIG["vix_high"],
+        use_fractional=HDE_CONFIG.get("fractional", True),
+        allow_short=HDE_CONFIG.get("allow_short", False),
+        dd_limit=HDE_CONFIG["dd_limit"],
+    )
+    kwargs.update(override)
+    result = run_backtest(preds_df, **kwargs)
+    result["label"] = label
+    return result
 
-def build_buy_and_hold():
-    df = PREDS[["Date", "Ticker", "Actual", "VIX_Value"]].copy()
-    df["Prediction"] = 1.0
-    return df
-
-def build_momentum_12_1():
-    master = pd.read_csv("data/processed/master_dataset.csv", parse_dates=["Date"])
-    ret_col = "Return_1d" if "Return_1d" in master.columns else "Target_Return"
-    frames = []
-    for ticker in PREDS["Ticker"].unique():
-        h = master[master["Ticker"] == ticker].sort_values("Date").copy()
-        h["ret12"] = (1 + h[ret_col]).rolling(252).apply(np.prod, raw=True) - 1
-        h["ret1"] = (1 + h[ret_col]).rolling(21).apply(np.prod, raw=True) - 1
-        h["mom_12_1"] = h["ret12"] - h["ret1"]
-        frames.append(h[["Date", "Ticker", "mom_12_1"]])
-    mom = pd.concat(frames, ignore_index=True)
-    df = PREDS[["Date", "Ticker", "Actual", "VIX_Value"]].merge(
-        mom, on=["Date", "Ticker"], how="left")
-    df.rename(columns={"mom_12_1": "Prediction"}, inplace=True)
-    df["Prediction"] = df["Prediction"] / 252
-    return df.dropna(subset=["Prediction"])
-
-def build_equal_weight_ensemble():
-    df = PREDS[["Date", "Ticker", "Actual", "VIX_Value",
-                "Pred_RF", "Pred_GB", "Pred_LSTM"]].copy()
-    df["Prediction"] = df[["Pred_RF", "Pred_GB", "Pred_LSTM"]].mean(axis=1)
-    return df.dropna(subset=["Prediction"])
-
-
-def diebold_mariano(e1, e2, h=1, loss="abs"):
-    e1, e2 = np.asarray(e1), np.asarray(e2)
-    if len(e1) != len(e2):
-        raise ValueError(
-            f"Diebold-Mariano requires aligned error series of equal length, "
-            f"got {len(e1)} and {len(e2)}."
-        )
-    if loss == "abs":
-        d = np.abs(e1) - np.abs(e2)
-    elif loss == "sq":
-        d = e1 ** 2 - e2 ** 2
-    else:
-        raise ValueError(loss)
-
-    T = len(d)
-    d_bar = np.mean(d)
-    gamma_0 = np.var(d, ddof=0)
-    gamma = [gamma_0]
-    for k in range(1, h):
-        gk = np.mean((d[:-k] - d_bar) * (d[k:] - d_bar))
-        gamma.append(gk)
-    var_d = gamma[0] + 2 * sum(gamma[1:])
-    var_d = max(var_d, 1e-12) / T
-    dm = d_bar / np.sqrt(var_d)
-    hln_factor = np.sqrt((T + 1 - 2 * h + h * (h - 1) / T) / T)
-    dm_hln = dm * hln_factor
-    p = 2 * (1 - sp_stats.t.cdf(abs(dm_hln), df=T - 1))
-    return float(dm_hln), float(p)
-
-def build_table_4_1():
+def build_table_4_2():
     print("\n" + "=" * 78)
-    print("TABLE 4.1 — Predictive Performance (95% block bootstrap CIs)")
+    print("TABLE 4.2 — Baseline Ladder (95% CIs, paired tests vs HDE)")
     print("=" * 78)
+
+    strategies = {}
+
+    bh_preds = build_buy_and_hold()
+    strategies["a_BuyHold"] = run_strategy(
+        "Buy & Hold", bh_preds,
+        threshold=0.0, use_threshold=False, use_vix_filter=False,
+        use_taper=False, use_fractional=False, allow_short=False,
+    )
+
+    try:
+        mom_preds = build_momentum_12_1()
+        strategies["b_Momentum"] = run_strategy("12-1 Momentum", mom_preds)
+    except Exception as e:
+        print(f"  [warn] momentum baseline failed: {e}")
+
+    if "Pred_Linear" in PREDS.columns and not PREDS["Pred_Linear"].isna().all():
+        strategies["c_OLS_overlay"] = run_strategy(
+            "OLS + overlay", preds_for_model("Pred_Linear"))
+
+    strategies["d_EqualWeight"] = run_strategy(
+        "Equal-weight static ens.", build_equal_weight_ensemble())
+
+    strategies["e_HDE"] = run_strategy("Full HDE", preds_for_model("Pred_HDE"))
+
     rows = []
-    errors = {}
-    return rows, errors
+    for key, res in strategies.items():
+        s = res["stats"]
+        rets = res["daily_returns"]
+        bl = select_block_length(rets)
+        sr_pt, (sr_lo, sr_hi), _ = block_bootstrap(
+            rets, lambda x: sharpe_annualised(x), n_boot=5000, block_len=bl)
+        rows.append({
+            "Strategy": res["label"],
+            "Total Return %": round(s["total_return_pct"], 1),
+            "Sharpe": round(s["sharpe"], 3),
+            "Sharpe_CI_lo": round(sr_lo, 3),
+            "Sharpe_CI_hi": round(sr_hi, 3),
+            "Sortino": round(s["sortino"], 3),
+            "Calmar": round(s["calmar"], 3),
+            "Max DD %": round(s["max_drawdown"] * 100, 1),
+            "Exposure %": round(s["avg_exposure"] * 100, 1),
+        })
+    table = pd.DataFrame(rows)
+    print(table.to_string(index=False))
+
+    print("\nJobson–Korkie–Memmel Sharpe tests (vs Full HDE):")
+    pair_pvals = {}
+    for key, res in strategies.items():
+        if key == "e_HDE":
+            continue
+        hde_port = strategies["e_HDE"]["portfolio"][["Date", "Strategy_Ret"]].rename(columns={"Strategy_Ret": "hde"})
+        other_port = res["portfolio"][["Date", "Strategy_Ret"]].rename(columns={"Strategy_Ret": "other"})
+        merged = hde_port.merge(other_port, on="Date", how="inner")
+        t = sharpe_difference_test(merged["hde"].values, merged["other"].values)
+        print(f"  HDE vs {res['label']:<26}  ΔSR={t['diff']:+.3f}  z={t['z']:+.2f}  p={t['p_value']:.4f}")
+        pair_pvals[f"HDE_vs_{key}"] = t["p_value"]
+
+    adj = holm_correction(pair_pvals)
+    print("\nHolm-corrected p-values:")
+    for k, v in adj.items():
+        mark = "★" if v["reject"] else " "
+        print(f"  {mark} {k:<30}  raw={v['raw']:.4f}  adj={v['adj']:.4f}")
+
+    table.to_csv(f"{EVAL_DIR}/table_4_2_baseline_ladder.csv", index=False)
+    pd.DataFrame(adj).T.to_csv(f"{EVAL_DIR}/table_4_2_sharpe_tests.csv")
+    return strategies, table, adj
+
+STRATEGIES, TABLE_4_2, LADDER_PVALS = build_table_4_2()
