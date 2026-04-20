@@ -1,0 +1,88 @@
+{
+  "config": {
+    "window": 10,
+    "decay": 0.9,
+    "threshold": 0.0,
+    "fractional": true,
+    "allow_short": false,
+    "dd_limit": 0.2,
+    "vix_low": 16.6,
+    "vix_high": 22.55,
+    "val_sharpe": 2.341469188693057
+  },
+  "portfolio": {
+    "market_return_pct": 108.90428865636505,
+    "strategy_return_pct": 33.37827738574488,
+    "market_sharpe": 1.488699402202163,
+    "strategy_sharpe": 1.099999395835219,
+    "market_max_drawdown": -0.2898647082148064,
+    "strategy_max_drawdown": -0.189663993703623,
+    "hit_rate": 0.5349397590361445,
+    "avg_exposure": 0.5288826615791188
+  },
+  "per_stock": [
+    {
+      "Ticker": "AAPL",
+      "Sharpe": -0.35721174680133794,
+      "Hit_Rate": 0.5379310344827586,
+      "Max_Drawdown": -0.31160134143405305,
+      "Total_Return_Pct": -13.789156649241951,
+      "Avg_Position": 0.4937803812901578,
+      "Num_Trades": 180
+    },
+    {
+      "Ticker": "AMZN",
+      "Sharpe": 0.5294075478070618,
+      "Hit_Rate": 0.5460750853242321,
+      "Max_Drawdown": -0.1858918285075432,
+      "Total_Return_Pct": 19.95700813070438,
+      "Avg_Position": 0.586,
+      "Num_Trades": 89
+    },
+    {
+      "Ticker": "GOOGL",
+      "Sharpe": 1.301461482825729,
+      "Hit_Rate": 0.5555555555555556,
+      "Max_Drawdown": -0.2353673766085924,
+      "Total_Return_Pct": 72.77320162457764,
+      "Avg_Position": 0.625552296316959,
+      "Num_Trades": 104
+    },
+    {
+      "Ticker": "META",
+      "Sharpe": 1.1297153094003776,
+      "Hit_Rate": 0.5250836120401338,
+      "Max_Drawdown": -0.18922859210075998,
+      "Total_Return_Pct": 69.25453003861945,
+      "Avg_Position": 0.598,
+      "Num_Trades": 79
+    },
+    {
+      "Ticker": "MSFT",
+      "Sharpe": 0.13953721185052526,
+      "Hit_Rate": 0.5362318840579711,
+      "Max_Drawdown": -0.248059091458094,
+      "Total_Return_Pct": 1.9177844432781699,
+      "Avg_Position": 0.5497363239152746,
+      "Num_Trades": 85
+    },
+    {
+      "Ticker": "NVDA",
+      "Sharpe": 0.8825704865208468,
+      "Hit_Rate": 0.5297805642633229,
+      "Max_Drawdown": -0.3762075652530363,
+      "Total_Return_Pct": 55.95442008855747,
+      "Avg_Position": 0.44463450605692445,
+      "Num_Trades": 239
+    },
+    {
+      "Ticker": "TSLA",
+      "Sharpe": 0.3655799220004626,
+      "Hit_Rate": 0.5123674911660777,
+      "Max_Drawdown": -0.36836597185017245,
+      "Total_Return_Pct": 14.221375853641938,
+      "Avg_Position": 0.40447512347451536,
+      "Num_Trades": 213
+    }
+  ]
+}

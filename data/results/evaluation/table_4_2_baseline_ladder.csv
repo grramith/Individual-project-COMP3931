@@ -1,0 +1,6 @@
+Strategy,Total Return %,Sharpe,Sharpe_CI_lo,Sharpe_CI_hi,Sortino,Calmar,Max DD %,Exposure %
+Buy & Hold,110.9,1.507,0.263,2.846,2.155,1.427,-29.0,99.8
+12-1 Momentum,56.8,1.223,-0.047,2.569,1.681,1.039,-23.8,81.1
+OLS + overlay,-0.1,0.033,-1.159,1.35,0.021,0.027,-9.6,5.8
+Equal-weight static ens.,26.3,0.718,-0.561,2.044,0.874,0.541,-25.1,66.8
+Full HDE,33.4,1.1,-0.189,2.395,1.46,0.818,-19.0,52.9

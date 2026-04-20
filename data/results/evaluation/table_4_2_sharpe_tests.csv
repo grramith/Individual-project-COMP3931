@@ -1,0 +1,5 @@
+,raw,adj,reject
+HDE_vs_a_BuyHold,0.4336872126435556,1.0,False
+HDE_vs_b_Momentum,0.7998921888928403,1.0,False
+HDE_vs_c_OLS_overlay,0.23091113808241892,0.9236445523296757,False
+HDE_vs_d_EqualWeight,0.44631806155944576,1.0,False

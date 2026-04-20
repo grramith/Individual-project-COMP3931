@@ -1,0 +1,5 @@
+Variable,Coefficient,Std_Error,R_squared,p_value
+Mean_VIX,-0.004953,0.003093,0.2995,0.1604
+Realised_Vol,-0.243211,0.15791,0.2833,0.1744
+Avg_Pair_Corr,-0.133165,0.120027,0.1702,0.3097
+Cum_Return,-0.006267,0.044553,0.0033,0.8927
