@@ -34,3 +34,44 @@ def build_equal_weight_ensemble():
                 "Pred_RF", "Pred_GB", "Pred_LSTM"]].copy()
     df["Prediction"] = df[["Pred_RF", "Pred_GB", "Pred_LSTM"]].mean(axis=1)
     return df.dropna(subset=["Prediction"])
+
+def diebold_mariano(e1, e2, h=1, loss="abs"):
+    e1, e2 = np.asarray(e1), np.asarray(e2)
+
+    if len(e1) != len(e2):
+        raise ValueError(
+            f"Diebold-Mariano requires aligned error series of equal length, "
+            f"got {len(e1)} and {len(e2)}."
+        )
+
+    if loss == "abs":
+        d = np.abs(e1) - np.abs(e2)
+    elif loss == "sq":
+        d = e1 ** 2 - e2 ** 2
+    else:
+        raise ValueError(loss)
+
+    T = len(d)
+    d_bar = np.mean(d)
+    gamma_0 = np.var(d, ddof=0)
+    gamma = [gamma_0]
+    for k in range(1, h):
+        gk = np.mean((d[:-k] - d_bar) * (d[k:] - d_bar))
+        gamma.append(gk)
+
+    var_d = gamma[0] + 2 * sum(gamma[1:])
+    var_d = max(var_d, 1e-12) / T
+    dm = d_bar / np.sqrt(var_d)
+    hln_factor = np.sqrt((T + 1 - 2 * h + h * (h - 1) / T) / T)
+    dm_hln = dm * hln_factor
+    p = 2 * (1 - sp_stats.t.cdf(abs(dm_hln), df=T - 1))
+    return float(dm_hln), float(p)
+
+
+def build_table_4_1():
+    print("\n" + "=" * 78)
+    print("TABLE 4.1 — Predictive Performance (95% block bootstrap CIs)")
+    print("=" * 78)
+    rows = []
+    errors = {}
+    return rows, errors
