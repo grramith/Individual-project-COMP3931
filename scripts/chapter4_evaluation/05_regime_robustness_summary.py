@@ -343,3 +343,104 @@ def build_display_items(strategies, regimes, regime_regression_table, eval_dir):
         plt.close()
 
         print(f"Saved → {eval_dir}/figure_4_3_regime_scatter.png")
+
+
+# Final - consolidate every headline number into one JSON for direct chapter population
+def write_summary_report(strategies, table_4_1, dm_matrix, ladder_pvals,
+                         hde_vs_equal_test, table_4_3, per_ticker_alpha_table,
+                         eval_dir):
+    print("\n" + "=" * 78)
+    print("CHAPTER 4 — SUMMARY REPORT")
+    print("=" * 78)
+
+    hde_stats = strategies["e_HDE"]["stats"]
+    bh_stats = strategies["a_BuyHold"]["stats"]
+    eq_stats = strategies["d_EqualWeight"]["stats"]
+
+    print("\n--- Success Criterion 1: Lower MAE than OLS baseline ---")
+    hde_row = table_4_1[table_4_1["Model"] == "HDE"].iloc[0]
+    ols_row = table_4_1[table_4_1["Model"] == "Linear"].iloc[0]
+    dm_p_hde_vs_ols = dm_matrix.loc["HDE", "Linear"]
+    print(f"  HDE MAE:    {hde_row['MAE']:.5f}  CI [{hde_row['MAE_CI_lo']:.5f}, {hde_row['MAE_CI_hi']:.5f}]")
+    print(f"  OLS MAE:    {ols_row['MAE']:.5f}  CI [{ols_row['MAE_CI_lo']:.5f}, {ols_row['MAE_CI_hi']:.5f}]")
+    print(f"  DM p-value: {dm_p_hde_vs_ols:.4f}")
+    # Verdict ladder: lower MAE + significant DM = PASS, lower MAE alone = INCONCLUSIVE
+    crit1 = "FAIL" if hde_row["MAE"] >= ols_row["MAE"] else ("PASS" if dm_p_hde_vs_ols < 0.05 else "INCONCLUSIVE")
+    print(f"  Verdict:    {crit1}")
+
+    print("\n--- Success Criterion 2: DirAcc > 53–55% naive baseline ---")
+    print(f"  HDE DirAcc: {hde_row['DirAcc']:.4f}  CI [{hde_row['DA_CI_lo']:.4f}, {hde_row['DA_CI_hi']:.4f}]")
+    print(f"  PT vs 0.5:  p = {hde_row['PT_p_vs_0.5']:.4f}")
+
+    print("\n--- Success Criterion 3: Sharpe > Buy & Hold after costs ---")
+    hde_bh_key = "HDE_vs_a_BuyHold"
+    p_val = ladder_pvals.get(hde_bh_key, {}).get("raw", None)
+    print(f"  HDE Sharpe:    {hde_stats['sharpe']:.3f}")
+    print(f"  BH Sharpe:     {bh_stats['sharpe']:.3f}")
+    if p_val is not None:
+        print(f"  JKM p-value:   {p_val:.4f}")
+    crit3 = "FAIL" if hde_stats['sharpe'] < bh_stats['sharpe'] else "PASS"
+    print(f"  Verdict:       {crit3}")
+
+    print("\n--- 4.5 Diagnostic: Dynamic weighting mechanism ---")
+    print(f"  HDE Sharpe:       {hde_vs_equal_test['sr1']:+.3f}")
+    print(f"  EqualWt Sharpe:   {hde_vs_equal_test['sr2']:+.3f}")
+    print(f"  JKM p-value:      {hde_vs_equal_test['p_value']:.4f}")
+    if hde_vs_equal_test['p_value'] > 0.05:
+        verdict = "INERT — dynamic weighting does not improve on uniform"
+    elif hde_vs_equal_test['diff'] < 0:
+        verdict = "HARMFUL — dynamic weighting underperforms uniform"
+    else:
+        verdict = "WORKING — dynamic weighting significantly outperforms uniform"
+    print(f"  Verdict:          {verdict}")
+
+    print("\n--- Drawdown attribution ---")
+    print(table_4_3.to_string(index=False))
+
+    print("\n--- Robustness: per-ticker alpha cross-section ---")
+    cs_mean = per_ticker_alpha_table["Annualised_Alpha_%"].mean()
+    print(f"  Mean per-ticker annualised alpha: {cs_mean:+.2f}%")
+
+    # Single JSON artefact - drop straight into the chapter PLACEHOLDER tags
+    report = {
+        "headline_verdicts": {
+            "criterion_1_mae_vs_ols": crit1,
+            "criterion_2_directional_accuracy": f"hit={hde_row['DirAcc']:.4f}",
+            "criterion_3_sharpe_vs_bh": crit3,
+            "dynamic_weighting_diagnosis": verdict,
+        },
+        "hde_test_stats": hde_stats,
+        "bh_test_stats": bh_stats,
+        "eq_weight_test_stats": eq_stats,
+        "hde_vs_equal_weight_test": hde_vs_equal_test,
+        "per_ticker_alpha_mean_pct": cs_mean,
+    }
+    with open(f"{eval_dir}/chapter_4_summary.json", "w") as f:
+        json.dump(report, f, indent=2, default=str)
+    print(f"\nSummary report → {eval_dir}/chapter_4_summary.json")
+    print(f"\nAll evaluation artefacts saved to: {eval_dir}/")
+    return report
+
+
+# Single entry point for main.py
+def run(strategies, table_4_1, dm_matrix, ladder_pvals,
+        hde_vs_equal_test, table_4_3, eval_dir):
+    regimes, regime_table = regime_regression(eval_dir)
+    pta = per_ticker_alpha(strategies, eval_dir)
+    tx = tx_cost_sensitivity(eval_dir)
+    build_display_items(strategies, regimes, regime_table, eval_dir)
+    report = write_summary_report(
+        strategies, table_4_1, dm_matrix, ladder_pvals,
+        hde_vs_equal_test, table_4_3, pta, eval_dir,
+    )
+    return {
+        "REGIMES": regimes,
+        "REGIME_REGRESSION": regime_table,
+        "PER_TICKER_ALPHA": pta,
+        "TX_SENSITIVITY": tx,
+        "SUMMARY": report,
+    }
+
+
+if __name__ == "__main__":
+    raise SystemExit("Run via main.py — STRATEGIES and earlier-phase outputs are required.")
