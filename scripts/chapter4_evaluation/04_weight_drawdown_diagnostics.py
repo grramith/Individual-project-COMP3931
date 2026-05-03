@@ -155,3 +155,19 @@ def drawdown_decomposition(eval_dir):
 
     table.to_csv(f"{eval_dir}/table_4_3_drawdown_decomposition.csv", index=False)
     return table
+
+
+# Single entry point for main.py - keeps the call site to one line
+def run(strategies, eval_dir):
+    daily, stats, test = weight_diagnosis(strategies, eval_dir)
+    table = drawdown_decomposition(eval_dir)
+    return {
+        "WEIGHTS": daily,
+        "WEIGHT_STATS": stats,
+        "HDE_VS_EQUAL_TEST": test,
+        "TABLE_4_3": table,
+    }
+
+
+if __name__ == "__main__":
+    raise SystemExit("Run via main.py: STRATEGIES dict comes from earlier phases.")
