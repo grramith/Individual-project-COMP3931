@@ -91,3 +91,64 @@ def weight_diagnosis():
 
 
 WEIGHTS, WEIGHT_STATS, HDE_VS_EQUAL_TEST = weight_diagnosis()
+
+
+def drawdown_decomposition():
+    # Run the 2x2x2 ablation for the three defensive overlay components.
+    print("\n" + "=" * 78)
+    print("TABLE 4.3 — Drawdown Decomposition (full 2×2×2 factorial)")
+    print("=" * 78)
+    print("All eight combinations of the three defensive components on HDE predictions.")
+    print("Base configuration uses the tuned HDE parameters from §4.3.\n")
+
+    hde_preds = preds_for_model("Pred_HDE")
+    rows = []
+    for use_thresh in [False, True]:
+        for use_vix in [False, True]:
+            for use_tap in [False, True]:
+                res = run_strategy(
+                    f"T={int(use_thresh)}/V={int(use_vix)}/D={int(use_tap)}",
+                    hde_preds,
+                    use_threshold=use_thresh,
+                    use_vix_filter=use_vix,
+                    use_taper=use_tap,
+                )
+                s = res["stats"]
+                rows.append({
+                    "Threshold": use_thresh,
+                    "VIX_filter": use_vix,
+                    "Taper": use_tap,
+                    "Sharpe": round(s["sharpe"], 3),
+                    "Max_DD_%": round(s["max_drawdown"] * 100, 2),
+                    "Total_Return_%": round(s["total_return_pct"], 1),
+                    "Exposure_%": round(s["avg_exposure"] * 100, 1),
+                })
+    table = pd.DataFrame(rows)
+    print(table.to_string(index=False))
+
+    print("\nMarginal contribution to drawdown improvement")
+    print("(averaged across all configurations of the other two components):")
+
+    def marginal_effect(component):
+        # Positive means enabling the component reduces max drawdown.
+        on = table[table[component] == True]["Max_DD_%"].mean()
+        off = table[table[component] == False]["Max_DD_%"].mean()
+        return off - on
+
+    for comp in ["Threshold", "VIX_filter", "Taper"]:
+        effect = marginal_effect(comp)
+        print(f"  {comp:<12}  ΔMax_DD when enabled: {effect:+.2f} pp  "
+              f"({'reduces' if effect > 0 else 'worsens'} drawdown)")
+
+    # Compare the full defensive overlay against no defensive overlay.
+    full = table[(table["Threshold"]) & (table["VIX_filter"]) & (table["Taper"])]
+    none = table[(~table["Threshold"]) & (~table["VIX_filter"]) & (~table["Taper"])]
+    if len(full) and len(none):
+        total_improvement = none.iloc[0]["Max_DD_%"] - full.iloc[0]["Max_DD_%"]
+        print(f"\n  Total drawdown reduction (all-on vs all-off): {total_improvement:+.2f} pp")
+
+    table.to_csv(f"{EVAL_DIR}/table_4_3_drawdown_decomposition.csv", index=False)
+    return table
+
+
+TABLE_4_3 = drawdown_decomposition()
