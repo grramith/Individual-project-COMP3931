@@ -1,52 +1,52 @@
 {
   "headline_verdicts": {
     "criterion_1_mae_vs_ols": "FAIL",
-    "criterion_2_directional_accuracy": "hit=0.5166",
+    "criterion_2_directional_accuracy": "hit=0.5146",
     "criterion_3_sharpe_vs_bh": "FAIL",
     "dynamic_weighting_diagnosis": "INERT \u2014 dynamic weighting does not improve on uniform"
   },
   "hde_test_stats": {
-    "total_return_pct": 30.721397151312523,
-    "sharpe": 1.053252411986919,
-    "sortino": 1.3944511572036962,
-    "max_drawdown": -0.16391310018598715,
-    "calmar": 0.8812274561552319,
-    "avg_exposure": 0.5056050170949997,
+    "total_return_pct": 32.35256092778076,
+    "sharpe": 1.0948842935348726,
+    "sortino": 1.4462021577384077,
+    "max_drawdown": -0.18074458678572405,
+    "calmar": 0.8341994833463314,
+    "avg_exposure": 0.5115833359506177,
     "n_days": 500,
-    "market_total_return_pct": 108.90428514839523,
-    "market_sharpe": 1.488699252698086,
-    "market_max_drawdown": -0.289864719124214
+    "market_total_return_pct": 108.9042867716632,
+    "market_sharpe": 1.4886993631686218,
+    "market_max_drawdown": -0.2898647069505781
   },
   "bh_test_stats": {
-    "total_return_pct": 110.91882501903831,
-    "sharpe": 1.5068527598171988,
-    "sortino": 2.155318653326229,
-    "max_drawdown": -0.28986471912421424,
-    "calmar": 1.427244940452656,
+    "total_return_pct": 110.91882933519605,
+    "sharpe": 1.5068528962556045,
+    "sortino": 2.15531819027843,
+    "max_drawdown": -0.28986470695057764,
+    "calmar": 1.4272450161758317,
     "avg_exposure": 0.998,
     "n_days": 500,
-    "market_total_return_pct": 108.90428514839523,
-    "market_sharpe": 1.488699252698086,
-    "market_max_drawdown": -0.289864719124214
+    "market_total_return_pct": 108.9042867716632,
+    "market_sharpe": 1.4886993631686218,
+    "market_max_drawdown": -0.2898647069505781
   },
   "eq_weight_test_stats": {
-    "total_return_pct": 3.7896001961661208,
-    "sharpe": 0.1967848365393132,
-    "sortino": 0.21172111789861153,
-    "max_drawdown": -0.2136746261452804,
-    "calmar": 0.1457716866731635,
-    "avg_exposure": 0.28713377451082067,
+    "total_return_pct": 9.426378186393357,
+    "sharpe": 0.3580872916646244,
+    "sortino": 0.39007885863899533,
+    "max_drawdown": -0.2797345132732646,
+    "calmar": 0.2108357639844744,
+    "avg_exposure": 0.5085259831670778,
     "n_days": 500,
-    "market_total_return_pct": 108.90428514839523,
-    "market_sharpe": 1.488699252698086,
-    "market_max_drawdown": -0.289864719124214
+    "market_total_return_pct": 108.9042867716632,
+    "market_sharpe": 1.4886993631686218,
+    "market_max_drawdown": -0.2898647069505781
   },
   "hde_vs_equal_weight_test": {
-    "sr1": 1.053252411986919,
-    "sr2": 0.1967848365393132,
-    "diff": 0.8564675754476059,
-    "z": 1.1148326744136214,
-    "p_value": 0.264922131780178
+    "sr1": 1.0948842935348726,
+    "sr2": 0.3580872916646244,
+    "diff": 0.7367970018702482,
+    "z": 1.2800628024816574,
+    "p_value": 0.2005230494866117
   },
-  "per_ticker_alpha_mean_pct": -26.927142857142858
+  "per_ticker_alpha_mean_pct": -26.291428571428572
 }

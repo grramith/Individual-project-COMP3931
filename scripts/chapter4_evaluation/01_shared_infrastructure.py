@@ -1,5 +1,5 @@
 # Phase 0 - shared infrastructure
-# One backtest engine + one prediction loader so every variant in the chapter is compared on identical footing
+# One backtest engine + prediction loader so the rest of the chapter compares like with like
 
 import os
 import json
@@ -8,11 +8,13 @@ import pandas as pd
 import joblib
 import warnings
 from pathlib import Path
+import pickle
+
+
 warnings.filterwarnings("ignore")
 
-# Walk up from cwd until we hit the project root, so the notebook runs from any subdir
+# Find the project root so this runs from any cwd (notebook subdir, scripts/, etc.)
 def _find_project_root():
-
     sentinel_dirs = {'data', 'scripts', 'models'}
     candidate = Path.cwd().resolve()
     while True:
@@ -26,17 +28,17 @@ def _find_project_root():
 PROJECT_ROOT = _find_project_root()
 os.chdir(PROJECT_ROOT)
 print(f"Project root: {PROJECT_ROOT}")
-# Fail fast if the upstream HDE config is missing - nothing downstream will work without it
+# Stop early if script 07 hasn't been run yet
 assert Path("data/results/best_ensemble_config.json").exists()
 EVAL_DIR = "data/results/evaluation"
 os.makedirs(EVAL_DIR, exist_ok=True)
 
 TRADING_DAYS = 252
-TX_COST_DEFAULT = 0.0005  # 5 bps - matches the existing backtester which i had used for comparison purposes
+TX_COST_DEFAULT = 0.0005  # 5 bps - same as the existing backtester
 INITIAL_CAPITAL = 1000.0
 
 
-# Reusable backtest engine - every strategy in the chapter routes through this so results are comparable
+# Shared backtest engine - every strategy in the chapter goes through this
 def run_backtest(
     preds_df,
     threshold=0.0,
@@ -72,11 +74,11 @@ def run_backtest(
         peak = initial_capital
 
         for i in range(1, n):
-            # use yesterday's prediction to avoid look-ahead bias
+            # use yesterday's prediction so there's no look-ahead
             p = pred[i - 1]
             v = vix[i - 1]
 
-            # scale threshold up in elevated-VIX regimes to reduce whipsaws
+            # widen the threshold when VIX is high - cuts whipsaws
             if use_vix_filter and use_threshold:
                 if v > vix_high:
                     eff = eff_threshold_base * 3.0
@@ -87,7 +89,7 @@ def run_backtest(
             else:
                 eff = eff_threshold_base
 
-            # fractional sizing: position scales linearly with signal strength
+            # fractional sizing scales with signal strength
             denom = eff * 5 + 1e-9
             if use_fractional and use_threshold:
                 if p > eff:
@@ -97,7 +99,7 @@ def run_backtest(
                 else:
                     position[i] = 0.0
             else:
-                # binary sign-based entry when threshold is disabled or non-fractional
+                # binary entry when threshold or fractional sizing is off
                 if p > eff:
                     position[i] = 1.0
                 elif allow_short and p < -eff:
@@ -105,14 +107,14 @@ def run_backtest(
                 else:
                     position[i] = 0.0
 
-            # drawdown taper - linearly reduce exposure once dd_limit is breached
+            # cut exposure once drawdown goes past the limit
             if use_taper:
                 current_dd = (equity[i - 1] - peak) / peak if peak > 0 else 0.0
                 if current_dd < -dd_limit:
                     severity = min((abs(current_dd) - dd_limit) / dd_limit, 1.0)
                     position[i] *= max(1.0 - severity, 0.0)
 
-            # net return = directional P&L minus proportional transaction cost
+            # P&L minus tx cost on the position change
             pos_change = abs(position[i] - position[i - 1])
             ret = position[i] * actual[i] - pos_change * tx_cost
             strat_rets[i] = ret
@@ -129,7 +131,7 @@ def run_backtest(
 
     combined = pd.concat(per_ticker, ignore_index=True)
 
-    # equal-weight across tickers per day - mirrors a naive Mag-7 basket
+    # Equal-weight basket across tickers per day
     port = combined.groupby("Date").agg(
         Actual=("Actual", "mean"),
         Strategy_Ret=("Strategy_Ret", "mean"),
@@ -164,7 +166,7 @@ def run_backtest(
     }
 
 
-# Standard performance metrics, all annualised to 252 trading days
+# Performance metrics, all annualised to 252 trading days
 def sharpe_annualised(rets, periods=TRADING_DAYS):
     rets = np.asarray(rets)
     if len(rets) == 0 or np.std(rets, ddof=1) == 0:
@@ -172,7 +174,7 @@ def sharpe_annualised(rets, periods=TRADING_DAYS):
     return (np.mean(rets) / np.std(rets, ddof=1)) * np.sqrt(periods)
 
 def sortino_annualised(rets, periods=TRADING_DAYS):
-    # penalise only downside deviation - better for asymmetric return profiles
+    # only penalise downside vol
     rets = np.asarray(rets)
     downside = rets[rets < 0]
     if len(downside) == 0 or np.std(downside, ddof=1) == 0:
@@ -193,13 +195,13 @@ def calmar_ratio(rets, equity, periods=TRADING_DAYS):
     return ann_ret / mdd
 
 
-# Pulls every model's test-set predictions into one wide table keyed on (Date, Ticker)
+# Build the wide predictions table keyed on (Date, Ticker)
 def load_all_test_predictions():
     X_test = np.load("data/modeling/X_test.npy")
     y_test = np.load("data/modeling/y_test_returns.npy")
     test_meta = pd.read_csv("data/modeling/test_metadata.csv", parse_dates=["Date"])
 
-    # load each baseline pkl and generate predictions on the held-out test set
+    # Load each baseline pkl and run it on the test set
     baselines = {}
     model_files = {
         "Linear": "models/baselines/Linear_Regression.pkl",
@@ -216,7 +218,7 @@ def load_all_test_predictions():
             baselines[name] = joblib.load(path).predict(X_test)
             print(f"  [ok]   loaded {name}")
         except Exception as e:
-            # Keep going if one model fails to unpickle - the table just drops that row
+            # Don't kill the whole pipeline if one pkl is broken
             print(f"  [warn] couldn't load {name} ({type(e).__name__})")
             print("         try re-running scripts/05_train_baseline_regressors.py")
             print(f"         skipping {name} for now — it won’t appear in Table 4.1")
@@ -227,14 +229,14 @@ def load_all_test_predictions():
     for name, arr in baselines.items():
         preds[f"Pred_{name}"] = arr
 
-    # bring in the HDE's blended predictions and per-constituent weights
+    # HDE blended predictions plus the daily weights for each constituent
     hde = pd.read_csv("data/results/hde_final_results.csv", parse_dates=["Date"])
     hde_slim = hde[["Date", "Ticker", "Ensemble_Delta", "VIX_Value",
                     "Weight_RF", "Weight_GB", "Weight_LSTM"]].copy()
     hde_slim.rename(columns={"Ensemble_Delta": "Pred_HDE"}, inplace=True)
     preds = preds.merge(hde_slim, on=["Date", "Ticker"], how="left")
 
-    # LSTM predictions live in a separate CSV produced by script 06
+    # LSTM preds live in a separate CSV (script 06)
     lstm_path = "data/results/lstm_predictions.csv"
     if os.path.exists(lstm_path):
         lstm = pd.read_csv(lstm_path, parse_dates=["Date"])
@@ -243,7 +245,7 @@ def load_all_test_predictions():
     else:
         preds["Pred_LSTM"] = np.nan
 
-    # the HDE warm-up period produces NaN predictions - drop those rows
+    # Drop the HDE warm-up rows (NaN predictions)
     preds = preds.dropna(subset=["Pred_HDE"]).reset_index(drop=True)
     preds = preds.sort_values(["Ticker", "Date"]).reset_index(drop=True)
 
@@ -253,7 +255,7 @@ def load_all_test_predictions():
     return preds
 
 
-# Reuse the tuned HDE config so every strategy in the ladder gets the same overlay parameters
+# Same tuned HDE config gets applied to every strategy in the ladder
 with open("data/results/best_ensemble_config.json") as f:
     HDE_CONFIG = json.load(f)
 
@@ -264,3 +266,8 @@ for k, v in HDE_CONFIG.items():
 PREDS = load_all_test_predictions()
 PREDS.to_csv(f"{EVAL_DIR}/all_test_predictions.csv", index=False)
 print(f"\nsaved combined predictions to {EVAL_DIR}/all_test_predictions.csv")
+
+# Save shared state so the rest of the pipeline can pick it up
+with open(f"{EVAL_DIR}/_state_phase0.pkl", "wb") as f:
+    pickle.dump({"PREDS": PREDS, "HDE_CONFIG": HDE_CONFIG}, f)
+print(f"saved phase-0 state to {EVAL_DIR}/_state_phase0.pkl")

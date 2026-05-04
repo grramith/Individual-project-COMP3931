@@ -1,27 +1,23 @@
-import os
-import json
-import numpy as np
 import pandas as pd
+import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-
+import json
+import os
 
 def calculate_max_drawdown(equity_curve):
-    # Peak-to-trough as a negative fraction so it slots straight into reporting
     peak = equity_curve.cummax()
     drawdown = (equity_curve - peak) / peak
     return drawdown.min()
-
 
 def calculate_sharpe(returns, periods=252):
     if returns.std() == 0:
         return 0.0
     return (returns.mean() / returns.std()) * np.sqrt(periods)
 
-
 def run_enhanced_backtest():
-    # Pull tuned thresholds from Script 07 instead of hardcoding - keeps backtest in sync with config
+    # Need both the predictions and the tuned config
     path = 'data/results/hde_final_results.csv'
     config_path = 'data/results/best_ensemble_config.json'
     if not os.path.exists(path) or not os.path.exists(config_path):
@@ -32,7 +28,7 @@ def run_enhanced_backtest():
     with open(config_path) as f:
         config = json.load(f)
 
-    # Tuned parameters from validation - vix keys vary across config versions, so handle both layouts
+    # Older configs only have one vix_threshold key, so fall back to that
     THRESHOLD     = config['threshold']
     VIX_LOW       = config.get('vix_low', config.get('vix_threshold', 18.0))
     VIX_HIGH      = config.get('vix_high', config.get('vix_threshold', 22.0))
@@ -40,8 +36,8 @@ def run_enhanced_backtest():
     ALLOW_SHORT   = config.get('allow_short', False)
     DD_LIMIT      = config['dd_limit']
     POS_SCALE     = config.get('pos_scale', 1)
-    TX_COST       = 0.0005  # 5 bps round-trip
-    INITIAL_CAPITAL = 1000  # NAV-normalised so equity curves are comparable from t=0
+    TX_COST       = 0.0005  # 5 bps
+    INITIAL_CAPITAL = 1000  # NAV-normalised so equity curves start at the same level
 
     print(f'Backtest Configuration (tuned on validation):')
     print(f'  Confidence Threshold: {THRESHOLD}')
@@ -70,10 +66,10 @@ def run_enhanced_backtest():
         peak = INITIAL_CAPITAL
 
         for i in range(1, n):
-            # Signal lag - trade tomorrow on yesterday's signal to avoid look-ahead
+            # Use yesterday's prediction so there's no look-ahead
             p = pred[i - 1]
 
-            # Multi-level VIX regime - threshold widens in higher-vol regimes to reduce false trades
+            # Widen the threshold when VIX is high
             v = vix[i-1]
             if v > VIX_HIGH:
                 eff_threshold = THRESHOLD * 3.0
@@ -82,7 +78,7 @@ def run_enhanced_backtest():
             else:
                 eff_threshold = THRESHOLD
 
-            # Position sizing - long always, short only when explicitly enabled
+            # Long always, short only if enabled
             denom = eff_threshold * 5 + 1e-9
             if USE_FRACTIONAL:
                 if p > eff_threshold:
@@ -99,13 +95,13 @@ def run_enhanced_backtest():
                 else:
                     position[i] = 0.0
 
-            # Gradual taper instead of hard cutoff - exposure shrinks linearly past the DD limit
+            # Cut exposure once drawdown crosses the limit
             current_dd = (equity[i-1] - peak) / peak
             if current_dd < -DD_LIMIT:
                 severity = min((abs(current_dd) - DD_LIMIT) / DD_LIMIT, 1.0)
                 position[i] *= max(1.0 - severity, 0.0)
 
-            # Net return after costs - cost charged on absolute change in position
+            # P&L minus tx cost on the position change
             pos_change = abs(position[i] - position[i-1])
             ret = position[i] * actual[i] - pos_change * TX_COST
             strat_rets[i] = ret
@@ -117,7 +113,7 @@ def run_enhanced_backtest():
         t_df['Strategy_Ret'] = strat_rets
         t_df['Equity'] = equity
 
-        # Per-stock metrics for the cross-sectional report
+        # Per-stock metrics
         stock_sharpe = calculate_sharpe(pd.Series(strat_rets))
         traded = t_df[t_df['Position'] > 0]
         hit_rate = (traded['Actual'] > 0).mean() if len(traded) > 0 else 0.0
@@ -138,7 +134,7 @@ def run_enhanced_backtest():
 
     processed_df = pd.concat(final_returns)
 
-    # Equal-weight aggregation across tickers gives the headline portfolio numbers
+    # Equal-weight basket across tickers
     portfolio = processed_df.groupby('Date').agg({
         'Actual': 'mean',
         'Strategy_Ret': 'mean',
@@ -171,10 +167,125 @@ def run_enhanced_backtest():
     print(f'{"Hit Rate":<25} {"N/A":>15} {portfolio_hit:>14.1%}')
     print(f'{"Avg Exposure":<25} {"100%":>15} {avg_exposure:>14.1%}')
 
-    return (processed_df, portfolio, per_stock_metrics, config,
-            DD_LIMIT, INITIAL_CAPITAL,
-            m_sharpe, s_sharpe, m_dd, s_dd,
-            portfolio_hit, total_market, total_strat, avg_exposure)
+    # Two figures for the chapter's subcaption layout
+
+    plt.rcParams.update({'font.size': 11})
+
+    os.makedirs('figures', exist_ok=True)
+
+    # Equity curves - shaded by which strategy is ahead
+    fig, ax = plt.subplots(figsize=(7, 5))
+    
+    ax.plot(portfolio['Date'], portfolio['Market_Cum'],
+            label='Buy & Hold', color='gray', alpha=0.6, lw=0.8)
+    ax.plot(portfolio['Date'], portfolio['HDE_Cum'],
+            label='HDE Strategy', color='#2563eb', lw=1.2)
+    
+    ax.fill_between(portfolio['Date'], portfolio['HDE_Cum'], portfolio['Market_Cum'],
+                    where=portfolio['HDE_Cum'] > portfolio['Market_Cum'],
+                    alpha=0.15, color='green', label='Outperformance')
+    ax.fill_between(portfolio['Date'], portfolio['HDE_Cum'], portfolio['Market_Cum'],
+                    where=portfolio['HDE_Cum'] <= portfolio['Market_Cum'],
+                    alpha=0.15, color='red', label='Underperformance')
+    
+    ax.set_title(
+        'Equity Curve Comparison: HDE vs Buy-and-Hold',
+        fontweight='bold',
+        fontsize=11
+    )
+    ax.set_ylabel('Portfolio Value ($)')
+    ax.set_xlabel('Date')
+    
+    legend = ax.legend(
+        loc='upper left',
+        fontsize=8,
+        title='Key',
+        title_fontsize=9
+    )
+    legend.get_title().set_fontweight('bold')
+    ax.grid(True, alpha=0.3)
+    
+    fig.autofmt_xdate(rotation=30)
+    plt.tight_layout()
+    
+    plt.savefig('figures/equity_curves.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    # Drawdown profile - dotted line marks the circuit-breaker level
+    fig, ax = plt.subplots(figsize=(7, 5))
+    
+    mkt_dd = (
+        (portfolio['Market_Cum'] - portfolio['Market_Cum'].cummax())
+        / portfolio['Market_Cum'].cummax()
+    ) * 100
+    
+    str_dd = (
+        (portfolio['HDE_Cum'] - portfolio['HDE_Cum'].cummax())
+        / portfolio['HDE_Cum'].cummax()
+    ) * 100
+    
+    ax.fill_between(portfolio['Date'], mkt_dd, 0,
+                    alpha=0.3, color='gray', label='Buy & Hold')
+    ax.fill_between(portfolio['Date'], str_dd, 0,
+                    alpha=0.4, color='#2563eb', label='HDE Strategy')
+    
+    ax.axhline(
+        y=-DD_LIMIT * 100,
+        color='red',
+        linestyle=':',
+        alpha=0.6,
+        label=f'Circuit Breaker ({DD_LIMIT:.0%})'
+    )
+    
+    ax.set_title(
+        'Drawdown Profile: HDE Strategy vs Buy-and-Hold',
+        fontweight='bold',
+        fontsize=11
+    )
+    ax.set_ylabel('Drawdown (%)')
+    ax.set_xlabel('Date')
+    
+    legend = ax.legend(
+        loc='lower left',
+        fontsize=8,
+        title='Key',
+        title_fontsize=9
+    )
+    legend.get_title().set_fontweight('bold')
+    ax.grid(True, alpha=0.3)
+    
+    fig.autofmt_xdate(rotation=30)
+    plt.tight_layout()
+    
+    plt.savefig('figures/drawdown_profiles.png', dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # Save metrics + summary so the chapter pulls from one source
+    os.makedirs('data/results', exist_ok=True)
+    pd.DataFrame(per_stock_metrics).to_csv('data/results/per_stock_metrics.csv', index=False)
+    portfolio.to_csv('data/results/portfolio_backtest.csv', index=False)
+
+    summary = {
+        'config': config,
+        'portfolio': {
+            'market_return_pct': total_market,
+            'strategy_return_pct': total_strat,
+            'market_sharpe': m_sharpe,
+            'strategy_sharpe': s_sharpe,
+            'market_max_drawdown': float(m_dd),
+            'strategy_max_drawdown': float(s_dd),
+            'hit_rate': float(portfolio_hit),
+            'avg_exposure': float(avg_exposure),
+        },
+        'per_stock': per_stock_metrics
+    }
+    with open('data/results/backtest_summary.json', 'w') as f:
+        json.dump(summary, f, indent=2, default=str)
+
+    print(f'\nFigures saved:')
+    print(f'  figures/equity_curves.png')
+    print(f'  figures/drawdown_profiles.png')
+    print(f'\nData and metrics saved to data/results/')
 
 
 if __name__ == '__main__':

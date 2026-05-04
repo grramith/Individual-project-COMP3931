@@ -1,5 +1,5 @@
 config,best_val_loss,stopped_epoch
-"{'seq_len': 10, 'hidden_size': 64, 'lr': 0.001, 'dropout': 0.3}",0.0005490281197818972,28
-"{'seq_len': 20, 'hidden_size': 64, 'lr': 0.001, 'dropout': 0.3}",0.0005231342336990125,33
-"{'seq_len': 10, 'hidden_size': 128, 'lr': 0.0005, 'dropout': 0.2}",0.000550715950140286,45
-"{'seq_len': 20, 'hidden_size': 128, 'lr': 0.0005, 'dropout': 0.2}",0.0005230553960861488,33
+"{'seq_len': 10, 'hidden_size': 64, 'lr': 0.001, 'dropout': 0.3}",0.0005498670712335124,21
+"{'seq_len': 20, 'hidden_size': 64, 'lr': 0.001, 'dropout': 0.3}",0.0005259389860370422,20
+"{'seq_len': 10, 'hidden_size': 128, 'lr': 0.0005, 'dropout': 0.2}",0.0005593697426818488,30
+"{'seq_len': 20, 'hidden_size': 128, 'lr': 0.0005, 'dropout': 0.2}",0.000526024681235438,30

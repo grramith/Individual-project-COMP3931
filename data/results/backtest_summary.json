@@ -8,81 +8,81 @@
     "dd_limit": 0.2,
     "vix_low": 16.6,
     "vix_high": 22.55,
-    "val_sharpe": 2.221779331982044
+    "val_sharpe": 2.2587817255255804
   },
   "portfolio": {
-    "market_return_pct": 108.90428514839523,
-    "strategy_return_pct": 30.721397151312523,
-    "market_sharpe": 1.488699252698086,
-    "strategy_sharpe": 1.053252411986919,
-    "market_max_drawdown": -0.289864719124214,
-    "strategy_max_drawdown": -0.16391310018598715,
-    "hit_rate": 0.5324675324675324,
-    "avg_exposure": 0.5056050170949997
+    "market_return_pct": 108.9042867716632,
+    "strategy_return_pct": 32.35256092778076,
+    "market_sharpe": 1.4886993631686214,
+    "strategy_sharpe": 1.094884293534872,
+    "market_max_drawdown": -0.2898647069505781,
+    "strategy_max_drawdown": -0.18074458678572405,
+    "hit_rate": 0.5343669250645995,
+    "avg_exposure": 0.5115833359506177
   },
   "per_stock": [
     {
       "Ticker": "AAPL",
-      "Sharpe": -0.3446896625218596,
-      "Hit_Rate": 0.5413533834586466,
-      "Max_Drawdown": -0.2996232985829146,
-      "Total_Return_Pct": -13.035086054261368,
-      "Avg_Position": 0.46511875813423,
-      "Num_Trades": 156
+      "Sharpe": -0.3243588025876194,
+      "Hit_Rate": 0.5427509293680297,
+      "Max_Drawdown": -0.2953239875830895,
+      "Total_Return_Pct": -12.537122015632352,
+      "Avg_Position": 0.471833364731814,
+      "Num_Trades": 158
     },
     {
       "Ticker": "AMZN",
-      "Sharpe": 0.25171108478689286,
-      "Hit_Rate": 0.5315985130111525,
-      "Max_Drawdown": -0.22093234420436927,
-      "Total_Return_Pct": 6.314314828731482,
-      "Avg_Position": 0.537651515038249,
-      "Num_Trades": 88
+      "Sharpe": 0.31667212173089804,
+      "Hit_Rate": 0.5350553505535055,
+      "Max_Drawdown": -0.19029557415976472,
+      "Total_Return_Pct": 9.291750393861363,
+      "Avg_Position": 0.542,
+      "Num_Trades": 83
     },
     {
       "Ticker": "GOOGL",
-      "Sharpe": 1.338488153735102,
-      "Hit_Rate": 0.5551724137931034,
-      "Max_Drawdown": -0.1930975035127104,
-      "Total_Return_Pct": 73.82221000595035,
-      "Avg_Position": 0.58,
-      "Num_Trades": 91
+      "Sharpe": 1.3917047612387035,
+      "Hit_Rate": 0.5547945205479452,
+      "Max_Drawdown": -0.19309782274494713,
+      "Total_Return_Pct": 78.42444005185165,
+      "Avg_Position": 0.584,
+      "Num_Trades": 93
     },
     {
       "Ticker": "META",
-      "Sharpe": 0.9918206866440116,
-      "Hit_Rate": 0.5266903914590747,
-      "Max_Drawdown": -0.18464523988367174,
-      "Total_Return_Pct": 55.96458585214481,
-      "Avg_Position": 0.562,
-      "Num_Trades": 73
+      "Sharpe": 0.9246465047777943,
+      "Hit_Rate": 0.5231316725978647,
+      "Max_Drawdown": -0.20148709589168967,
+      "Total_Return_Pct": 50.8303462234113,
+      "Avg_Position": 0.5619851290410831,
+      "Num_Trades": 68
     },
     {
       "Ticker": "MSFT",
-      "Sharpe": 0.046332437986218555,
-      "Hit_Rate": 0.532258064516129,
-      "Max_Drawdown": -0.19570121979748048,
-      "Total_Return_Pct": -0.7077485890743196,
-      "Avg_Position": 0.496,
+      "Sharpe": 0.21217816459215777,
+      "Hit_Rate": 0.5381526104417671,
+      "Max_Drawdown": -0.19124814052720815,
+      "Total_Return_Pct": 4.067980224032164,
+      "Avg_Position": 0.498,
       "Num_Trades": 87
     },
     {
       "Ticker": "NVDA",
-      "Sharpe": 0.8605121661743025,
-      "Hit_Rate": 0.5309446254071661,
-      "Max_Drawdown": -0.37712518876362894,
-      "Total_Return_Pct": 52.48474005055943,
-      "Avg_Position": 0.4169135114486345,
-      "Num_Trades": 245
+      "Sharpe": 0.8880422153530126,
+      "Hit_Rate": 0.5326797385620915,
+      "Max_Drawdown": -0.3711070486369901,
+      "Total_Return_Pct": 57.83476955196589,
+      "Avg_Position": 0.4608896425158603,
+      "Num_Trades": 203
     },
     {
       "Ticker": "TSLA",
-      "Sharpe": 0.4979144415886422,
-      "Hit_Rate": 0.5075757575757576,
-      "Max_Drawdown": -0.30031227663253185,
-      "Total_Return_Pct": 26.393264784749615,
-      "Avg_Position": 0.4815513350438846,
-      "Num_Trades": 177
+      "Sharpe": 0.4668574307142835,
+      "Hit_Rate": 0.5131086142322098,
+      "Max_Drawdown": -0.3157789594062931,
+      "Total_Return_Pct": 23.20601576724368,
+      "Avg_Position": 0.46237521536556664,
+      "Num_Trades": 191
     }
   ]
 }
