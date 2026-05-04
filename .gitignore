@@ -1,22 +1,68 @@
-# Ignore everything by default
+# Keeping the repository focused on files needed for marking and reproduction
 *
 
-# Allow core project files
+# Keeping the main project files
 !.gitignore
 !README.md
-!main.py
 !requirements.txt
+!main.py
+!run_evaluation.py
+!config.py
 
-# Allow notebook (for reference)
-!final_mag7.ipynb
-
-# Allow scripts folder and all python files inside
+# Keeping the pipeline scripts
 !scripts/
-!scripts/*.py
-
-# Allow folder structure (important)
 !scripts/**
+!scripts/**/*.py
 
-# Explicitly ignore data (good practice for dissertation)
-data/
+# Keeping the test suite
+!tests/
+!tests/**
+!tests/**/*.py
+
+# Keeping the reference notebooks
+!notebooks/
+!notebooks/**
+!notebooks/*.ipynb
+
+# Keeping only the final Chapter 4 outputs used in the report
+!data/
+data/*
+
+!data/results/
+data/results/*
+
+!data/results/evaluation/
+!data/results/evaluation/*.csv
+!data/results/evaluation/*.json
+!data/results/evaluation/*.png
+
+# Excluding raw downloads and intermediate datasets
+data/raw/
+data/processed/
+data/modeling/
+
+# Excluding trained model artefacts
 models/
+*.pkl
+*.pth
+
+# Excluding secrets and local environments
+.env
+.env.*
+.venv/
+venv/
+
+# Excluding Python and notebook cache files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Excluding macOS files
+.DS_Store
+
+# Excluding local helper files and temporary exports
+readme_context_dump.txt
+make_readme_context.sh
+scripts.zip
+figure_4_1.png
