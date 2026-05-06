@@ -89,28 +89,6 @@ The main finding is that adaptive weighting did not provide a reliable improveme
 - **Reproducibility:** Random seed 42 is set globally. All artifacts are deterministic across runs on the same hardware.
 
 ---
-
-## Tech Stack
-
-| Purpose | Library | Version |
-|---------|---------|---------|
-| Equity data | yfinance | 0.2.66 |
-| Macro data | fredapi | 0.5.2 |
-| Env vars | python-dotenv | 1.0.1 |
-| Data wrangling | pandas, numpy | 2.3.3, 1.26.4 |
-| Classical ML | scikit-learn | 1.5.2 |
-| Model serialisation | joblib | >= 1.3.0 |
-| Deep learning | PyTorch | 2.4.1 |
-| Statistical tests | scipy | 1.13.1 |
-| Plots | matplotlib | 3.9.2 |
-| Tests | pytest | 8.3.3 |
-| Notebooks | jupyter, ipykernel | >= 1.0.0, >= 6.25.0 |
-
-**Python:** 3.11+
-
-The experiments for this project were run on a Mac with an Apple M2 chip and 16 GB of memory, running macOS 26.3.1. The LSTM training loop used MPS acceleration where available, with CPU fallback where needed.
-
----
 ## Project Structure
 
 ```
@@ -188,6 +166,28 @@ The experiments for this project were run on a Mac with an Apple M2 chip and 16 
 ```
 
 ---
+## Tech Stack
+
+| Purpose | Library | Version |
+|---------|---------|---------|
+| Equity data | yfinance | 0.2.66 |
+| Macro data | fredapi | 0.5.2 |
+| Env vars | python-dotenv | 1.0.1 |
+| Data wrangling | pandas, numpy | 2.3.3, 1.26.4 |
+| Classical ML | scikit-learn | 1.5.2 |
+| Model serialisation | joblib | >= 1.3.0 |
+| Deep learning | PyTorch | 2.4.1 |
+| Statistical tests | scipy | 1.13.1 |
+| Plots | matplotlib | 3.9.2 |
+| Tests | pytest | 8.3.3 |
+| Notebooks | jupyter, ipykernel | >= 1.0.0, >= 6.25.0 |
+
+**Python:** 3.11+
+
+The experiments for this project were run on a Mac with an Apple M2 chip and 16 GB of memory, running macOS 26.3.1. The LSTM training loop used MPS acceleration where available, with CPU fallback where needed.
+
+---
+
 ## Setup
 
 ### Prerequisites
@@ -290,7 +290,7 @@ Outputs are saved in `data/results/`. The `evaluation/` folder contains the Chap
 
 Best validation configuration: `window=10`, `decay=0.9`, `threshold=0.0005`, `VIX_low=16.6`, `VIX_high=22.55`.
 
-
+---
 ## Testing
 
 Run the full test suite:
